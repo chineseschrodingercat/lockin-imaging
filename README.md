@@ -1,10 +1,66 @@
 # Lock-in imaging
 
-**Recover periodic fluorescence from image stacks with an inspectable, exposure-aware numerical pipeline.**
+**Exposure-aware I/Q demodulation for fluorescence image stacks, with independent numerical checks and reproducible run records.**
 
 [![CI](https://github.com/chineseschrodingercat/lockin-imaging/actions/workflows/ci.yml/badge.svg)](https://github.com/chineseschrodingercat/lockin-imaging/actions/workflows/ci.yml)
 ![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-3776AB)
 ![Evidence: synthetic](https://img.shields.io/badge/evidence-synthetic_only-006b68)
+
+**Minhao Liu — project lead and author.** I develop computational workflows for
+periodic fluorescence imaging. This repository connects a measurement model to
+a tested numerical estimator, a reusable Python API and an auditable analysis
+workflow.
+
+The problem is to estimate a periodic fluorescence component when ordinary
+brightness, slow drift and camera exposure also affect the observations.
+This public companion demonstrates my work in **lock-in algorithm formulation,
+numerical validation and scientific software engineering** using established
+signal-processing and least-squares methods.
+
+**Evidence scope:** all fluorescence images, traces and recovery metrics shown
+here come from synthetic inputs. They demonstrate software behavior under stated
+assumptions, not measured instrument sensitivity or experimental detection
+accuracy. This is a reduced companion to ongoing research; experimental data,
+unpublished outcomes and experiment-specific decision rules are excluded.
+
+## My contributions
+
+**Lock-in formulation and numerical solution.** Formulated a per-pixel model
+that fits polynomial drift and signed cosine/sine coefficients jointly at a
+supplied reference frequency. Incorporated rectangular-exposure integration into
+the design matrix and specified the phase, peak-amplitude and normalization
+conventions. The implementation factors the shared design once with SVD, checks
+rank and conditioning, and estimates each pixel independently. Joint fitting
+addresses the finite-record bias that can arise from detrending only the
+observations before demodulation.
+[Inspect the estimator](src/lockin_imaging/core.py) and
+[the derivation](docs/appendix-mathematics.md).
+
+**Numerical validation with independent constructions.** Built checks that go
+beyond whether the code runs: analytic injected signals, a separate numerical
+exposure integral, QR-based partial regression, and repeated noise simulations.
+The tests examine signed I/Q recovery, covariance under its stated assumptions,
+positive magnitude bias under a null signal, and finite-record frequency
+response. Additional checks tie the plotted trace and frequency scan back to
+the actual image estimates.
+[Inspect the core tests](tests/test_core.py),
+[mathematical checks](tests/test_mathematics.py) and
+[figure-consistency tests](tests/test_figures.py).
+
+**Engineering implementation and reproducibility.** Separated the NumPy
+estimator from file handling, the CLI, simulation and plotting. Implemented
+read-only memory-mapped input and bounded pixel chunks; explicit timing,
+shape and pixel-quality checks; input/output hashes; failed-run records; and
+refusal to overwrite an existing run. Packaged the code with pinned validation
+dependencies, wheel-installation checks, Linux/Windows CI and an explicit
+public-file release gate.
+[Inspect the architecture](docs/architecture.md),
+[CLI](src/lockin_imaging/cli.py), [I/O](src/lockin_imaging/io.py) and
+[CI workflow](.github/workflows/ci.yml).
+
+I lead the scientific problem framing and technical direction. The public
+implementation, tests and documentation were developed with AI assistance under
+my direction; [provenance](docs/provenance.md) records that development process.
 
 ![Synthetic workflow: the same pixel's observed trace and joint fit lead to a fitted I/Q vector and the full amplitude map.](docs/assets/workflow.svg)
 
@@ -14,16 +70,30 @@ map. All 512 frames are fitted; the trace panels display the first 3 s. The vect
 length is exposure-corrected sinusoidal peak amplitude, and its angle follows
 `A cos[2πf(t−t₀)−φ]`. [Full figure legend and settings](docs/figure-legends.md#figure-1-from-a-recorded-trace-to-a-pixelwise-amplitude-map).
 
-Fluorescence brightness alone does not reveal whether a location responds to a
-periodic stimulus. This package estimates the component at a supplied reference
-frequency for every pixel, while accounting for slow drift and finite camera
-exposure. It provides a small Python API, a command-line workflow, deterministic
-synthetic examples, and tests of the numerical and data-handling contracts.
+## Verification evidence
 
-This is a **public engineering companion to ongoing fluorescence/quantum-sensing
-research led by Minhao Liu**. It is a deliberately reduced, refactored software
-example, not the complete experimental analysis or a reproduction of unpublished
-findings. Every data figure and result in this repository is synthetic.
+The [v0.2.0 release](https://github.com/chineseschrodingercat/lockin-imaging/releases/tag/v0.2.0)
+passed **87 tests** on Linux and Windows with Python 3.11 and 3.13;
+[the recorded CI run](https://github.com/chineseschrodingercat/lockin-imaging/actions/runs/39929469064)
+also includes synthetic replay, figure rendering, package construction and
+installed-wheel execution. The badge above reports the current branch status.
+
+| Question a reviewer can check | Evidence in the repository |
+|---|---|
+| Does the estimator recover the specified signed signal? | 40 noiseless phase/drift/exposure combinations and an independently integrated exposure model in [test_core.py](tests/test_core.py) |
+| Are the mathematical assumptions exercised independently? | QR residualization, a counterexample to one-sided detrending, noise-magnitude moments and off-frequency response in [test_mathematics.py](tests/test_mathematics.py) |
+| Do failures and input changes remain visible? | Pixel exclusions, unsigned-input/chunk agreement, configuration-change detection, incomplete receipts and overwrite rejection in [core](tests/test_core.py) and [CLI tests](tests/test_cli.py) |
+| Can the public artifact be reproduced and inspected? | Pinned dependencies, content hashes, a staged-file allowlist, numerical replay and installation checks in [the reproduction guide](docs/reproducing.md) and [release gate](tools/check_release.py) |
+
+These checks establish behavior on known inputs. The synthetic image's error
+metrics are not an experimental benchmark.
+
+The estimator makes deliberate choices: one fixed frequency, one polynomial
+baseline and one I/Q pair per pixel over the full recording. It requires uniform
+frame-center timing and a stationary grayscale input. Reported I/Q covariance
+assumes independent, equal-variance temporal errors. Motion correction,
+time-varying phase, calibrated detection thresholds and experimental inference
+are outside this public implementation. [Method and limits](docs/method.md).
 
 ## Run the demo
 
@@ -38,10 +108,10 @@ python -m lockin_imaging demo --output outputs/demo
 
 Open `outputs/demo/synthetic_demo.png`. The directory also contains signal/control
 maps, generated input arrays, configuration, synthetic error metrics, and a
-`run.json` record with output hashes. Use a new output directory for each run;
-existing results are never silently replaced. No dataset download or credential
-is required. [Reproduction instructions](docs/reproducing.md) include exact
-dependency pins and the local-input workflow.
+`run.json` record with output hashes. Use a new output directory for each run.
+No dataset download or credential is required.
+[Reproduction instructions](docs/reproducing.md) include exact dependency pins
+and the local-input workflow.
 
 ![Synthetic results: bright static and modulating spots appear together in mean fluorescence; recovered lock-in amplitude follows the known modulating spots, while a separate zero-modulation control retains a small positive noise floor. A single-pixel trace and diagnostic frequency scan show the supplied reference.](docs/assets/synthetic_demo.png)
 
@@ -62,17 +132,6 @@ defines all panels, timing, noise, normalization and display limits;
 [exact synthetic metrics](docs/assets/synthetic_metrics.json) describe this one
 realization. These are software examples, not measured experimental performance.
 
-## What the code demonstrates
-
-| Engineering concern | Implementation | Evidence to inspect |
-|---|---|---|
-| Numerical stability | One SVD factorization; polynomial drift and I/Q fitted jointly; conditioning guard | [core.py](src/lockin_imaging/core.py), signed recovery and exposure-integration tests |
-| Large image stacks | Read-only NumPy memory maps; bounded pixel chunks; no whole-movie float conversion | Chunk equivalence, unsigned-input and input-integrity tests |
-| Explicit scientific meaning | Peak amplitude, phase, exposure, covariance and normalization are derived | [Mathematical appendix](docs/appendix-mathematics.md), independent numerical checks |
-| Failure handling | Strict timing/shape checks; pixel-level flags; incomplete run receipts; refusal to overwrite | [CLI tests](tests/test_cli.py) |
-| Reproducibility | Fixed synthetic seeds; pinned development environment; content-hashed outputs | [Reproduction guide](docs/reproducing.md), GitHub Actions |
-| Controlled publication | A fresh repository, explicit file allowlist and hash-checked publication gate | [Release boundary](docs/release-boundary.md), [check_release.py](tools/check_release.py) |
-
 ## Python API
 
 ```python
@@ -81,39 +140,28 @@ from lockin_imaging import LockinConfig, demodulate
 
 times = np.arange(512) / 32.0  # frame-center seconds
 trace = 100.0 + 4.0 * np.cos(2 * np.pi * 1.25 * times - 0.3)
-result = demodulate(trace, times, LockinConfig(frequency_hz=1.25))
+result = demodulate(trace, times, LockinConfig(frequency_hz=1.25, exposure_s=0.0))
 print(float(result.amplitude))  # approximately 4.0
 print(float(result.phase_rad))  # approximately 0.3
 ```
 
-The same API accepts `(frames, traces)` or `(frames, height, width)` arrays. It
-does not infer timing, color channels, bit depth, particle identity or a detection
-threshold. Local input must already be a stationary, uniformly sampled grayscale
-stack. Registration and experiment-specific selection remain outside this release.
+The same API accepts `(frames, traces)` or `(frames, height, width)` arrays.
+It does not infer timing, color channels, bit depth or object identity.
+Array preparation is explicit; [the method](docs/method.md) defines the input
+contract and every output quantity.
 
-## Repository map
+## Technical documentation
 
-```text
-src/lockin_imaging/  numerical core, input/output, CLI, simulation, plotting
-tests/              analytic truth, numerical integration, covariance, failure paths
-docs/               mathematics, architecture, reproducibility and release scope
-docs/assets/        generated synthetic figures and compact demonstration metrics
-examples/           explicit synthetic configuration
-tools/              gallery generation and publication checks
-.github/workflows/  Linux/Windows test and packaging matrix
-```
+| Start here | What it covers |
+|---|---|
+| [Foundations](docs/foundations.md) | What a lock-in image measures and how to interpret controls |
+| [Method](docs/method.md) and [mathematical appendix](docs/appendix-mathematics.md) | Exposure integration, joint regression, SVD, covariance, magnitude bias, waveform contrast and finite-record response |
+| [Architecture](docs/architecture.md) | Dependency boundaries, working-memory scaling and implementation tradeoffs |
+| [Figure legends](docs/figure-legends.md) and [references](docs/references.md) | Complete display definitions and supporting primary sources |
+| [Review notes](docs/review-notes.md) and [project summary](docs/project-summary.md) | Corrections, verification scope and the relationship to the broader research workflow |
 
-## Read the technical companion
-
-- [Foundations](docs/foundations.md): what lock-in amplitude measures and how to interpret the controls.
-- [Figure legends](docs/figure-legends.md): complete conditions, panel definitions and normalization formulas.
-- [Method and API contracts](docs/method.md): timing, input validation, output meaning and limitations.
-- [Mathematical appendix](docs/appendix-mathematics.md): exposure integration, partial regression, SVD, covariance, magnitude bias, waveform contrast and finite-record response.
-- [References and source guide](docs/references.md): primary manuals, numerical documentation and a magnitude-noise reference, with their precise roles.
-- [Architecture](docs/architecture.md) and [review notes](docs/review-notes.md): implementation choices, corrections and verification scope.
-
-The [project summary](docs/project-summary.md) explains how this public
-implementation relates to the broader research workflow.
+Source modules live in `src/lockin_imaging/`; tests in `tests/`; gallery
+generation and publication checks in `tools/`.
 
 ## Development
 
@@ -128,19 +176,15 @@ python tools/check_release.py
 ```
 
 The release check inspects the Git index, including hashes. After reviewing a
-change to an already approved file, refresh the manifest and stage the updated
-files as described in [CONTRIBUTING.md](CONTRIBUTING.md).
+change, refresh the manifest and stage the approved files as described in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Author and scope
+## Author and availability
 
 **Minhao Liu** — PhD candidate in Chemistry & Biochemistry, Texas Tech University;
 MS in Computational and Applied Mathematics, University of Chicago.
 
-The repository highlights scientific software design, numerical signal
-processing, data integrity, reproducible analysis and technical communication.
-Implementation and documentation were developed with AI assistance under author
-direction; see [provenance and acknowledgments](docs/provenance.md).
-
-Source is published for inspection; no general reuse license is granted in this
-release. See [RIGHTS.md](RIGHTS.md). Research data and unpublished findings are not
-included.
+Source is available for inspection under [RIGHTS.md](RIGHTS.md); this release
+does not grant a general reuse license. The [release boundary](docs/release-boundary.md)
+describes the public file set. Experimental data and unpublished findings remain
+outside this repository.
