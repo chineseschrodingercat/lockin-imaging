@@ -9,110 +9,99 @@ import numpy as np
 
 from lockin_imaging import demodulate
 from lockin_imaging.io import write_json
-from lockin_imaging.plotting import _style, plot_scene, synthetic_metrics
+from lockin_imaging.plotting import _example_series, _style, plot_scene, synthetic_metrics
 from lockin_imaging.synthetic import make_scene
 
 
-def draw_workflow(output: Path) -> None:
+def draw_workflow(output: Path, scene, signal) -> None:
+    """Every curve, phasor and map comes from the same synthetic recording."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.patches import FancyArrowPatch
+    from matplotlib.patches import Arc, FancyArrowPatch
 
-    ink, muted, teal, amber = "#142f43", "#40596b", "#006b68", "#a45200"
+    ink, teal, amber, blue = "#111111", "#006b68", "#a45200", "#0072b2"
+    series = _example_series(scene)
+    y, x = scene.example_yx
+    cosine, sine = float(signal.cosine[y, x]), float(signal.sine[y, x])
+    phase = float(signal.phase_rad[y, x])
+    visible = scene.times_s < 3
+    t = scene.times_s[visible]
     with plt.rc_context(_style()):
-        fig = plt.figure(figsize=(16, 6.8))
+        fig = plt.figure(figsize=(18, 6.8))
         canvas = fig.add_axes((0, 0, 1, 1))
         canvas.set(xlim=(0, 1), ylim=(0, 1))
         canvas.axis("off")
-        fig.text(0.05, 0.91, "LOCK-IN IMAGING", color=teal, fontsize=12, fontweight="bold")
-        fig.text(
-            0.05,
-            0.81,
-            "From noisy frames to periodic signal.",
-            fontsize=32,
-            color=ink,
-            fontweight="bold",
+        fig.text(0.055, 0.89, "Lock-in imaging", fontsize=32, fontweight="bold")
+        fig.text(0.95, 0.90, "SYNTHETIC", fontsize=18, ha="right", color=teal, fontweight="bold")
+        columns = (0.055, 0.30, 0.545, 0.79)
+        labels = ("01  Input trace", "02  Joint fit", "03  Quadrature", "04  Amplitude map")
+        for left, title in zip(columns, labels, strict=True):
+            fig.text(left, 0.75, title, fontsize=18, fontweight="bold")
+
+        axes = [fig.add_axes((left, 0.30, 0.16, 0.32)) for left in columns]
+        axes[0].plot(t, series["observed"][visible, 0], color=blue, lw=1.3)
+        axes[1].plot(t, series["fitted"][visible, 0], color=blue, lw=2, label="Joint fit")
+        axes[1].plot(
+            t, series["baseline"][visible, 0], color=amber, ls="--", lw=2, label="Baseline"
         )
-        fig.text(
-            0.05,
-            0.75,
-            "A reproducible software companion for fluorescence imaging",
-            fontsize=14,
-            color=muted,
+        low = float(series["observed"][visible, 0].min()) - 4
+        high = float(series["observed"][visible, 0].max()) + 4
+        for ax in axes[:2]:
+            ax.set(xlim=(0, 3), ylim=(low, high), xlabel="Time (s)", ylabel="Intensity (a.u.)")
+            ax.set_xticks([0, 1, 2, 3])
+        axes[1].legend(
+            loc="lower center", bbox_to_anchor=(0.5, 1.02), frameon=False, fontsize=12, ncol=2
         )
-        fig.text(
-            0.95, 0.91, "PUBLIC EDITION  /  SYNTHETIC ONLY", fontsize=10, ha="right", color=muted
+
+        ax = axes[2]
+        bound = max(25.0, float(np.ceil(max(cosine, sine) + 2)))
+        ax.set(
+            xlim=(-2, bound), ylim=(-2, bound), xlabel="I (a.u.)", ylabel="Q (a.u.)", aspect="equal"
         )
-        columns = (0.05, 0.295, 0.54, 0.785)
-        labels = (
-            ("01", "EXPLICIT INPUT", "Image stack + frame times"),
-            ("02", "JOINT MODEL", "Drift + exposure-aware harmonic"),
-            ("03", "QUADRATURE", "I/Q coefficients for each pixel"),
-            ("04", "AUDITABLE OUTPUT", "Amplitude, phase and quality"),
+        ax.set_xticks([0, 10, 20])
+        ax.set_yticks([0, 10, 20])
+        ax.plot([0, cosine, cosine], [sine, sine, 0], color=teal, ls=":", lw=1.5)
+        ax.add_patch(
+            FancyArrowPatch(
+                (0, 0), (cosine, sine), arrowstyle="-|>", mutation_scale=20, color=blue, lw=2
+            )
         )
-        for x, (number, title, subtitle) in zip(columns, labels, strict=True):
-            fig.text(x, 0.64, number, color=teal, fontsize=12, fontweight="bold")
-            fig.text(x, 0.59, title, color=ink, fontsize=12, fontweight="bold")
-            fig.text(x, 0.54, subtitle, color=muted, fontsize=10)
-        rng = np.random.default_rng(7)
-        t = np.linspace(0, 1, 120)
-        ax = fig.add_axes((0.05, 0.30, 0.18, 0.19))
-        raw = 0.7 * np.cos(2 * np.pi * 3 * t) + rng.normal(0, 0.45, len(t)) + 0.5 * t
-        ax.plot(t, raw, color="#0072b2", lw=1.1)
-        ax.set(xlim=(0, 1), ylim=(-2.1, 2.1))
-        ax.axis("off")
-        fig.text(0.05, 0.27, "Noisy intensity at one location", fontsize=10, color=muted)
-        ax = fig.add_axes((0.295, 0.30, 0.18, 0.19))
-        ax.plot(t, 0.65 * np.cos(2 * np.pi * 3 * t) + 0.5 * t, color=teal, lw=2)
-        ax.plot(t, 0.5 * t, color=amber, lw=1.5, ls="--")
-        ax.set(xlim=(0, 1), ylim=(-2.1, 2.1))
-        ax.axis("off")
-        fig.text(0.295, 0.27, "One shared design; no phase search", fontsize=10, color=muted)
-        ax = fig.add_axes((0.54, 0.30, 0.18, 0.19))
-        ax.axhline(0, color="#c5ced5", lw=1)
-        ax.plot(t, np.cos(2 * np.pi * 3 * t), color=teal, lw=2)
-        ax.plot(t, np.sin(2 * np.pi * 3 * t), color=amber, lw=1.5, ls="--")
-        ax.set(xlim=(0, 1), ylim=(-1.3, 1.3))
-        ax.axis("off")
-        fig.text(0.54, 0.27, "Cosine I      Sine Q", fontsize=10, color=muted)
-        ax = fig.add_axes((0.79, 0.31, 0.155, 0.19))
-        yy, xx = np.mgrid[:36, :48]
-        values = np.zeros_like(xx, dtype=float)
-        for y, x, amplitude in ((10, 11, 1), (25, 31, 0.8), (9, 37, 0.65)):
-            values += amplitude * np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / 8)
-        ax.imshow(values, cmap="magma", interpolation="nearest", vmin=0, vmax=1)
-        ax.axis("off")
-        fig.text(0.785, 0.27, "Schematic map; no measured pixels", fontsize=10, color=muted)
-        for left in (0.248, 0.493, 0.738):
+        ax.add_patch(Arc((0, 0), 13, 13, theta1=0, theta2=np.degrees(phase), color=amber, lw=2))
+        ax.text(7.2, 1.8, r"$\phi$", fontsize=20, color=amber)
+        ax.text(cosine / 2 - 3, sine / 2 + 3, r"$A$", fontsize=20, color=blue)
+
+        ax = axes[3]
+        vmax = max(24.0, float(np.ceil(signal.amplitude.max())))
+        im = ax.imshow(signal.amplitude, cmap="magma", vmin=0, vmax=vmax, interpolation="nearest")
+        ax.plot(x, y, "o", markerfacecolor="none", markeredgecolor="#00e5e5", ms=9, mew=1.5)
+        ax.set(xlabel="x (pixels)", ylabel="y (pixels)")
+        ax.set_xticks([0, 40, 79])
+        ax.set_yticks([0, 30, 63])
+        fig.colorbar(im, ax=ax, fraction=0.048, pad=0.04, ticks=[0, vmax / 2, vmax]).set_label(
+            "Peak amplitude (a.u.)"
+        )
+        for left in (0.235, 0.48, 0.725):
             canvas.add_patch(
                 FancyArrowPatch(
-                    (left, 0.41),
-                    (left + 0.03, 0.41),
+                    (left, 0.46),
+                    (left + 0.018, 0.46),
                     arrowstyle="-|>",
-                    mutation_scale=18,
-                    linewidth=1.5,
-                    color=muted,
+                    mutation_scale=22,
+                    linewidth=1.8,
+                    color=ink,
                 )
             )
-        canvas.plot([0.05, 0.95], [0.20, 0.20], color="#d9e1e7", lw=1)
-        fig.text(0.05, 0.13, r"$A=\sqrt{I^2+Q^2}$", fontsize=22, color=ink)
-        fig.text(0.275, 0.135, "Finite-exposure correction", fontsize=11, color=teal)
-        fig.text(0.52, 0.135, "Bounded pixel chunks", fontsize=11, color=teal)
-        fig.text(0.755, 0.135, "Hash-checked run records", fontsize=11, color=teal)
-        fig.text(
-            0.05,
-            0.052,
-            "General-purpose numerical core. Research data and unpublished findings stay outside this repository.",
-            fontsize=11,
-            color=muted,
-        )
+        fig.text(0.30, 0.10, r"$A=\sqrt{I^2+Q^2}$", fontsize=23)
+        fig.text(0.60, 0.10, r"$\phi=\mathrm{atan2}(Q,I)$", fontsize=23)
         for extension in ("png", "svg"):
             fig.savefig(
                 output / f"workflow.{extension}",
-                dpi=160,
-                metadata={"Description": "Schematic workflow; no experimental data"},
+                dpi=180,
+                metadata={
+                    "Description": "One synthetic recording and its fitted workflow; no experimental data"
+                },
             )
         plt.close(fig)
 
@@ -126,9 +115,8 @@ def main() -> None:
     signal = demodulate(scene.signal, scene.times_s, scene.config)
     control = demodulate(scene.control, scene.times_s, scene.config)
     plot_scene(scene, signal, control, args.output)
-    draw_workflow(args.output)
-    # Matplotlib emits trailing blanks inside SVG path attributes. Normalize the
-    # text serialization only; coordinates, image bytes and styling are unchanged.
+    draw_workflow(args.output, scene, signal)
+    # Normalize text serialization only; coordinates and image bytes are unchanged.
     for path in args.output.glob("*.svg"):
         text = path.read_text(encoding="utf-8")
         path.write_text(

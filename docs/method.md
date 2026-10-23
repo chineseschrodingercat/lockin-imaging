@@ -1,5 +1,11 @@
 # Mathematical model and interpretation
 
+This page specifies the implemented contract. The [foundations](foundations.md)
+give a conceptual introduction; the [mathematical appendix](appendix-mathematics.md)
+derives the formulas, and the [source guide](references.md) identifies supporting
+references. Plot-specific transformations are defined in the
+[figure legends](figure-legends.md).
+
 ## Timing and signal
 
 For one pixel, the supplied timestamps are uniformly spaced frame **centers** in

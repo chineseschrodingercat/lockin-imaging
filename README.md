@@ -6,7 +6,13 @@
 ![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-3776AB)
 ![Evidence: synthetic](https://img.shields.io/badge/evidence-synthetic_only-006b68)
 
-![Workflow: a grayscale image stack and explicit timing feed a joint drift and harmonic fit; cosine and sine coefficients form amplitude and phase maps, accompanied by quality flags and hashed run records.](docs/assets/workflow.svg)
+![Synthetic workflow: the same pixel's observed trace and joint fit lead to a fitted I/Q vector and the full amplitude map.](docs/assets/workflow.svg)
+
+**Figure 1. A consistent synthetic workflow.** The input trace, joint fit and
+I/Q vector correspond to the fixed pixel marked by the cyan ring in the amplitude
+map. All 512 frames are fitted; the trace panels display the first 3 s. The vector
+length is exposure-corrected sinusoidal peak amplitude, and its angle follows
+`A cos[2πf(t−t₀)−φ]`. [Full figure legend and settings](docs/figure-legends.md#figure-1-from-a-recorded-trace-to-a-pixelwise-amplitude-map).
 
 Fluorescence brightness alone does not reveal whether a location responds to a
 periodic stimulus. This package estimates the component at a supplied reference
@@ -17,7 +23,7 @@ synthetic examples, and tests of the numerical and data-handling contracts.
 This is a **public engineering companion to ongoing fluorescence/quantum-sensing
 research led by Minhao Liu**. It is a deliberately reduced, refactored software
 example, not the complete experimental analysis or a reproduction of unpublished
-findings. Every image and result in this repository is synthetic or schematic.
+findings. Every data figure and result in this repository is synthetic.
 
 ## Run the demo
 
@@ -39,13 +45,22 @@ dependency pins and the local-input workflow.
 
 ![Synthetic results: bright static and modulating spots appear together in mean fluorescence; recovered lock-in amplitude follows the known modulating spots, while a separate zero-modulation control retains a small positive noise floor. A single-pixel trace and diagnostic frequency scan show the supplied reference.](docs/assets/synthetic_demo.png)
 
-**Figure:** three modulating and three static synthetic spots; independent
-Gaussian noise in signal and control. Amplitude maps share a color scale. No
-detection threshold is applied. The frequency scan is a diagnostic visualization;
-the image estimator uses the supplied reference. Exact settings and generated
-error measurements are in [synthetic_metrics.json](docs/assets/synthetic_metrics.json).
-These are software examples, not instrument sensitivity, particle-identification
-accuracy, or a measurement of experimental performance.
+**Figure 2. Synthetic truth, recovery and control.** (a) Mean intensity of three
+modulating and three static sources. (b–d) Injected, recovered and control peak
+amplitudes on one linear 0–24 a.u. scale. The control has independent Gaussian
+noise and no injected modulation; its positive magnitude floor is retained.
+(e) The predetermined pixel's drift-corrected signal and control, displayed as
+`100 × (intensity − fitted drift + mean baseline) / mean baseline`.
+(f) A diagnostic scan that refits the full trace at each reference frequency;
+the image estimator itself uses the supplied 1.25 Hz reference.
+
+The demonstration uses 512 frames at 32 frames/s, 18 ms rectangular exposure,
+quadratic drift and seed `20261023`. All frames are fitted; panel e shows frame
+centers in `[0, 3)` s. No detection threshold, per-image amplitude rescaling or
+spatial smoothing is applied. [The full legend](docs/figure-legends.md#figure-2-synthetic-truth-recovery-and-a-zero-modulation-control)
+defines all panels, timing, noise, normalization and display limits;
+[exact synthetic metrics](docs/assets/synthetic_metrics.json) describe this one
+realization. These are software examples, not measured experimental performance.
 
 ## What the code demonstrates
 
@@ -53,7 +68,7 @@ accuracy, or a measurement of experimental performance.
 |---|---|---|
 | Numerical stability | One SVD factorization; polynomial drift and I/Q fitted jointly; conditioning guard | [core.py](src/lockin_imaging/core.py), signed recovery and exposure-integration tests |
 | Large image stacks | Read-only NumPy memory maps; bounded pixel chunks; no whole-movie float conversion | Chunk equivalence, unsigned-input and input-integrity tests |
-| Explicit scientific meaning | Peak amplitude, phase convention, exposure response and baseline normalization are defined | [Mathematical model](docs/method.md) |
+| Explicit scientific meaning | Peak amplitude, phase, exposure, covariance and normalization are derived | [Mathematical appendix](docs/appendix-mathematics.md), independent numerical checks |
 | Failure handling | Strict timing/shape checks; pixel-level flags; incomplete run receipts; refusal to overwrite | [CLI tests](tests/test_cli.py) |
 | Reproducibility | Fixed synthetic seeds; pinned development environment; content-hashed outputs | [Reproduction guide](docs/reproducing.md), GitHub Actions |
 | Controlled publication | A fresh repository, explicit file allowlist and hash-checked publication gate | [Release boundary](docs/release-boundary.md), [check_release.py](tools/check_release.py) |
@@ -88,9 +103,17 @@ tools/              gallery generation and publication checks
 .github/workflows/  Linux/Windows test and packaging matrix
 ```
 
-Start with [architecture and design decisions](docs/architecture.md), then the
-[mathematical model](docs/method.md). The [project summary](docs/project-summary.md)
-explains how this public implementation relates to the research workflow.
+## Read the technical companion
+
+- [Foundations](docs/foundations.md): what lock-in amplitude measures and how to interpret the controls.
+- [Figure legends](docs/figure-legends.md): complete conditions, panel definitions and normalization formulas.
+- [Method and API contracts](docs/method.md): timing, input validation, output meaning and limitations.
+- [Mathematical appendix](docs/appendix-mathematics.md): exposure integration, partial regression, SVD, covariance, magnitude bias, waveform contrast and finite-record response.
+- [References and source guide](docs/references.md): primary manuals, numerical documentation and a magnitude-noise reference, with their precise roles.
+- [Architecture](docs/architecture.md) and [review notes](docs/review-notes.md): implementation choices, corrections and verification scope.
+
+The [project summary](docs/project-summary.md) explains how this public
+implementation relates to the broader research workflow.
 
 ## Development
 

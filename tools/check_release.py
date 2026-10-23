@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path, PurePosixPath
 
 TEXT_SUFFIXES = {".py", ".md", ".json", ".txt", ".toml", ".yml", ".cff", ".svg"}
-TEXT_NAMES = {".gitignore", ".gitattributes"}
+TEXT_NAMES = {".gitignore", ".gitattributes", "MANIFEST.in"}
 PATTERNS = {
     "credential": re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}"),
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),

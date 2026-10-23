@@ -31,21 +31,63 @@ def synthetic_metrics(scene, signal, control) -> dict:
 def _style():
     return {
         "font.family": "DejaVu Sans",
-        "font.size": 10,
-        "axes.titlesize": 12,
-        "axes.labelsize": 10,
+        "font.size": 13,
+        "axes.titlesize": 16,
+        "axes.labelsize": 13,
         "axes.spines.top": False,
         "axes.spines.right": False,
         "axes.titleweight": "bold",
-        "text.color": "#142f43",
-        "axes.labelcolor": "#142f43",
-        "xtick.color": "#40596b",
-        "ytick.color": "#40596b",
+        "text.color": "#111111",
+        "axes.labelcolor": "#111111",
+        "xtick.color": "#111111",
+        "ytick.color": "#111111",
         "svg.fonttype": "none",
-        "svg.hashsalt": "lockin-imaging-synthetic-v1",
-        "figure.facecolor": "#fbfcfe",
-        "axes.facecolor": "#fbfcfe",
+        "svg.hashsalt": "lockin-imaging-synthetic-v2",
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
     }
+
+
+def _example_series(scene) -> dict[str, np.ndarray]:
+    """Use one full-record fit for the workflow and diagnostic trace panels."""
+    y, x = scene.example_yx
+    design, _ = _design(scene.times_s, scene.config)
+    observed = np.column_stack((scene.signal[:, y, x], scene.control[:, y, x])).astype(float)
+    origin = observed[0].copy()
+    beta = np.linalg.lstsq(design, observed - origin, rcond=None)[0]
+    beta[0] += origin
+    baseline = design[:, :-2] @ beta[:-2]
+    fitted = design @ beta
+    mean = baseline.mean(axis=0)
+    return {
+        "observed": observed,
+        "baseline": baseline,
+        "fitted": fitted,
+        "coefficients": beta,
+        "relative": 100 * (observed - baseline + mean) / mean,
+        "relative_fit": 100 * (fitted - baseline + mean) / mean,
+    }
+
+
+def _frequency_scan(scene, observed: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    frequencies = np.linspace(0.25, 3, 177)
+    scans = []
+    for frequency in frequencies:
+        config = LockinConfig(
+            frequency_hz=float(frequency),
+            exposure_s=scene.config.exposure_s,
+            drift_degree=scene.config.drift_degree,
+        )
+        scans.append(demodulate(observed, scene.times_s, config).amplitude)
+    return frequencies, np.array(scans)
+
+
+def _amplitude_limit(scene, signal, control) -> float:
+    # One linear scale covers all three maps; no high-amplitude pixels are clipped.
+    maximum = max(
+        float(a.max()) for a in (scene.truth_amplitude, signal.amplitude, control.amplitude)
+    )
+    return max(24.0, float(np.ceil(maximum)))
 
 
 def plot_scene(scene, signal, control, destination: Path) -> None:
@@ -55,75 +97,53 @@ def plot_scene(scene, signal, control, destination: Path) -> None:
     import matplotlib.pyplot as plt
 
     with plt.rc_context(_style()):
-        fig = plt.figure(figsize=(16, 9))
+        fig = plt.figure(figsize=(18, 10.5))
         grid = fig.add_gridspec(
-            2, 3, left=0.055, right=0.94, bottom=0.16, top=0.83, wspace=0.3, hspace=0.42
+            2, 3, left=0.065, right=0.955, bottom=0.09, top=0.85, wspace=0.44, hspace=0.48
         )
         axes = [fig.add_subplot(grid[i, j]) for i in range(2) for j in range(3)]
+        fig.text(0.065, 0.945, "Recovering periodic fluorescence", fontsize=29, fontweight="bold")
         fig.text(
-            0.055, 0.95, "A bright image is not a modulation map.", fontsize=27, fontweight="bold"
+            0.955, 0.95, "SYNTHETIC", fontsize=18, ha="right", color="#006b68", fontweight="bold"
         )
-        fig.text(
-            0.055,
-            0.902,
-            "Known synthetic truth  /  independent control noise  /  one fixed reference frequency",
-            fontsize=12,
-            color="#40596b",
+        mean = scene.signal.mean(axis=0, dtype=np.float64)
+        mean_limit = max(600.0, float(np.ceil(mean.max() / 100) * 100))
+        mean_image = axes[0].imshow(
+            mean, cmap="gray", vmin=0, vmax=mean_limit, interpolation="nearest"
         )
-        fig.text(
-            0.94,
-            0.955,
-            "SYNTHETIC ONLY",
-            fontsize=11,
-            ha="right",
-            color="#006b68",
-            fontweight="bold",
-        )
-        mean = scene.signal.mean(axis=0)
-        axes[0].imshow(mean, cmap="gray", vmin=0, vmax=float(np.max(mean)), interpolation="nearest")
         axes[0].set_title("a   Mean fluorescence", loc="left")
-        vmax = float(scene.truth_amplitude.max() * 1.08)
+        fig.colorbar(mean_image, ax=axes[0], fraction=0.045, pad=0.035).set_label(
+            "Intensity (a.u.)"
+        )
+        vmax = _amplitude_limit(scene, signal, control)
         for ax, data, title in zip(
             (axes[1], axes[2], axes[3]),
             (scene.truth_amplitude, signal.amplitude, control.amplitude),
-            (
-                "b   True harmonic amplitude",
-                "c   Recovered harmonic amplitude",
-                "d   Zero-modulation control",
-            ),
+            ("b   True amplitude", "c   Recovered amplitude", "d   Zero-modulation control"),
             strict=True,
         ):
             im = ax.imshow(data, cmap="magma", vmin=0, vmax=vmax, interpolation="nearest")
             ax.set_title(title, loc="left")
+            fig.colorbar(im, ax=ax, fraction=0.045, pad=0.035, ticks=[0, vmax / 2, vmax]).set_label(
+                "Peak amplitude (a.u.)"
+            )
         for ax in axes[:4]:
             ax.set_xlabel("x (pixels)")
             ax.set_ylabel("y (pixels)")
-        cb_ax = fig.add_axes((0.955, 0.58, 0.011, 0.21))
-        fig.colorbar(im, cax=cb_ax, label="Peak amplitude (a.u.); shared b–d")
         y, x = scene.example_yx
-        axes[2].plot(x, y, "o", markerfacecolor="none", markeredgecolor="cyan", ms=10, mew=1.5)
-        design, _ = _design(scene.times_s, scene.config)
-        traces = np.column_stack((scene.signal[:, y, x], scene.control[:, y, x]))
-        beta = np.linalg.lstsq(design, traces, rcond=None)[0]
-        polynomial = design[:, :-2] @ beta[:-2]
-        baseline = polynomial.mean(axis=0)
-        relative = 100 * (traces - polynomial + baseline) / baseline
-        fit = 100 * (design @ beta - polynomial + baseline) / baseline
+        axes[2].plot(x, y, "o", markerfacecolor="none", markeredgecolor="#00e5e5", ms=11, mew=1.8)
+        series = _example_series(scene)
+        relative, fit = series["relative"], series["relative_fit"]
         visible = scene.times_s < 3
         axes[4].plot(
-            scene.times_s[visible],
-            relative[visible, 0],
-            color="#0072b2",
-            lw=1,
-            alpha=0.7,
-            label="Modulated",
+            scene.times_s[visible], relative[visible, 0], color="#0072b2", lw=1.1, label="Modulated"
         )
         axes[4].plot(
             scene.times_s[visible],
             relative[visible, 1],
-            color="#6b7280",
-            lw=1,
-            alpha=0.7,
+            color="#007a60",
+            lw=1.2,
+            ls=":",
             label="Control",
         )
         axes[4].plot(
@@ -134,49 +154,30 @@ def plot_scene(scene, signal, control, destination: Path) -> None:
             lw=2,
             label="Harmonic fit",
         )
-        axes[4].set(
-            title="e   One fixed pixel; drift removed",
-            xlabel="Time (s)",
-            ylabel="Fluorescence / fitted mean (%)",
+        axes[4].set_title("e   Drift-corrected trace", loc="left")
+        axes[4].set(xlabel="Time (s)", ylabel="Baseline-normalized intensity (%)", xlim=(0, 3))
+        axes[4].set_ylim(
+            min(92, float(relative[visible].min()) - 1),
+            max(113, float(relative[visible].max()) + 6),
         )
-        axes[4].set_ylim(92, 111)
-        axes[4].legend(fontsize=7, loc="upper center", ncol=3, frameon=False)
-        frequencies = np.linspace(0.25, 3, 177)
-        scans = []
-        for frequency in frequencies:
-            config = LockinConfig(
-                frequency_hz=float(frequency),
-                exposure_s=scene.config.exposure_s,
-                drift_degree=scene.config.drift_degree,
-            )
-            scans.append(demodulate(np.ascontiguousarray(traces), scene.times_s, config).amplitude)
-        scans = np.array(scans)
+        axes[4].legend(fontsize=11, loc="upper center", frameon=False, ncol=2)
+        frequencies, scans = _frequency_scan(scene, series["observed"])
         axes[5].plot(frequencies, scans[:, 0], color="#0072b2", label="Modulated")
-        axes[5].plot(frequencies, scans[:, 1], color="#6b7280", ls=":", label="Control")
+        axes[5].plot(frequencies, scans[:, 1], color="#007a60", ls=":", label="Control")
         axes[5].axvline(
-            scene.config.frequency_hz, color="#a45200", ls="--", lw=1, label="Supplied reference"
+            scene.config.frequency_hz, color="#a45200", ls="--", lw=1.5, label="Reference"
         )
+        axes[5].set_title("f   Diagnostic frequency scan", loc="left")
         axes[5].set(
-            title="f   Diagnostic frequency scan",
             xlabel="Reference frequency (Hz)",
             ylabel="Peak amplitude (a.u.)",
-            ylim=(0, vmax),
+            ylim=(0, max(vmax, float(scans.max()) * 1.03)),
         )
-        axes[5].legend(fontsize=8, frameon=False, loc="upper right")
-        fig.text(
-            0.055,
-            0.047,
-            f"512 frames · 32 frames/s · 18 ms exposure · 1.25 Hz reference · seed {scene.seed}\n"
-            "Full 16 s recording fitted. Panel e shows 3 s. No detection threshold or per-image amplitude rescaling.",
-            fontsize=10,
-            color="#40596b",
-        )
+        axes[5].legend(fontsize=11, frameon=False, loc="upper right")
         for suffix in ("svg", "png"):
             fig.savefig(
                 destination / f"synthetic_demo.{suffix}",
                 dpi=180,
-                metadata={"Description": "Entirely synthetic lock-in imaging demonstration"}
-                if suffix == "svg"
-                else {"Description": "Entirely synthetic demonstration"},
+                metadata={"Description": "Entirely synthetic lock-in imaging demonstration"},
             )
         plt.close(fig)

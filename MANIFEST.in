@@ -1,0 +1,11 @@
+# Explicit source-distribution contents; do not recursively collect research files.
+include MANIFEST.in
+include .gitattributes .gitignore .github/workflows/ci.yml
+include CHANGELOG.md CITATION.cff CONTRIBUTING.md PUBLIC_FILES.json PUBLIC_FILES.txt RELEASE_MANIFEST.json
+include docs/architecture.md docs/appendix-mathematics.md docs/figure-legends.md docs/foundations.md
+include docs/method.md docs/project-summary.md docs/provenance.md docs/references.md
+include docs/release-boundary.md docs/reproducing.md docs/review-notes.md
+include docs/assets/synthetic_demo.png docs/assets/synthetic_demo.svg docs/assets/synthetic_metrics.json
+include docs/assets/workflow.png docs/assets/workflow.svg
+include examples/synthetic_config.json requirements/ci.txt
+include tools/build_gallery.py tools/check_release.py tools/update_manifest.py tools/verify_demo.py

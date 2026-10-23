@@ -7,7 +7,7 @@ a new Git history.
 | Included | Retained outside the repository |
 |---|---|
 | General harmonic fitting, explicit I/O and quality checks | Full research estimator and experiment-specific decision logic |
-| Invented simulation and schematic workflow | Raw or processed measured images and videos |
+| Invented simulation and its computed workflow | Raw or processed measured images and videos |
 | Synthetic amplitude-recovery metrics | Sample-level results, outcome tables and calibration records |
 | Tests, CI, packaging and mathematical documentation | Research notebooks, manuscripts and internal reports |
 | Synthetic display assets and exact generation code | Experimental figures, slides and their source tables |

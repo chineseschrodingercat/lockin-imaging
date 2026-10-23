@@ -60,11 +60,11 @@ def _demo(args: argparse.Namespace) -> dict:
 
 
 def _analyze(args: argparse.Namespace) -> dict:
-    config = LockinConfig(**json.loads(args.config.read_text(encoding="utf-8")))
     before = {
         key: sha256_file(path)
         for key, path in (("stack", args.stack), ("times", args.times), ("config", args.config))
     }
+    config = LockinConfig(**json.loads(args.config.read_text(encoding="utf-8")))
     stack = np.load(args.stack, mmap_mode="r", allow_pickle=False)
     times = np.load(args.times, allow_pickle=False)
     if stack.ndim != 3:

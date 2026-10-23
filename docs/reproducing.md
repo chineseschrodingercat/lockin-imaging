@@ -32,8 +32,13 @@ and have independent Gaussian noise. The control has no injected modulation.
 The numerical outputs should agree to floating-point tolerance across supported
 environments. Figure bytes may differ with fonts, operating systems and rendering
 library versions. Rendering metadata and array hashes do not imply scientific
-validation. The gallery generator writes the public schematic, synthetic figure
+validation. The gallery generator writes the public workflow, synthetic figure
 and compact metrics without copying any experimental asset.
+
+The workflow uses the same recording as the six-panel figure. Both figures have
+[complete external legends](figure-legends.md); editable SVG and high-resolution
+PNG exports contain only titles, axes, curve keys, essential equations and the
+prominent synthetic-data label.
 
 ## Analyze an explicit local array
 
@@ -69,6 +74,13 @@ assumptions, pixel exclusions, memory-map/chunk equivalence, deterministic
 simulation, input hashes, failure receipts and refusal to overwrite. CI repeats
 the suite on Linux and Windows with Python 3.11 and 3.13 and exercises a built
 wheel outside the source directory.
+
+Additional checks verify the appendix's partial-regression identity, the bias
+from one-sided detrending, Rayleigh magnitude moments under an isotropic null,
+square-wave fundamental/contrast conversion, and finite-window/off-frequency
+response. Figure tests connect the displayed example-pixel coefficients,
+normalized trace and diagnostic scan to the actual maps. A regression test
+changes the configuration file during reading and checks that the run fails.
 
 Consult the linked CI run for the actual status of a commit. A workflow definition
 alone is not evidence that the run passed.

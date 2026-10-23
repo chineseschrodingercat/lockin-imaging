@@ -1,5 +1,6 @@
 import json
 from dataclasses import asdict
+from pathlib import Path
 
 import numpy as np
 
@@ -85,3 +86,40 @@ def test_demo_headless_command(tmp_path):
     receipt = json.loads((out / "run.json").read_text())
     assert receipt["details"]["synthetic_only"] is True
     assert receipt["details"]["metrics"]["detection_threshold_applied"] is False
+
+
+def test_configuration_change_during_read_is_detected(tmp_path, monkeypatch):
+    times, stack, config = (tmp_path / name for name in ("times.npy", "input.npy", "config.json"))
+    t = np.arange(100) / 20
+    np.save(times, t)
+    np.save(stack, (100 + np.cos(2 * np.pi * t))[:, None, None])
+    config.write_text(json.dumps(asdict(LockinConfig(1))), encoding="utf-8")
+    read_text = Path.read_text
+
+    def read_then_change(path, *args, **kwargs):
+        text = read_text(path, *args, **kwargs)
+        if path == config:
+            path.write_text(json.dumps(asdict(LockinConfig(2))), encoding="utf-8")
+        return text
+
+    monkeypatch.setattr(Path, "read_text", read_then_change)
+    out = tmp_path / "changed-config"
+    assert (
+        main(
+            [
+                "analyze",
+                "--stack",
+                str(stack),
+                "--times",
+                str(times),
+                "--config",
+                str(config),
+                "--output",
+                str(out),
+            ]
+        )
+        == 2
+    )
+    receipt = json.loads((out / "run.json").read_text())
+    assert receipt["status"] == "failed"
+    assert not (out / "maps.npz").exists()
