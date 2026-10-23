@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.13']
+    env:
+      MPLBACKEND: Agg
+      OPENBLAS_NUM_THREADS: '1'
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements/ci.txt
+      - name: Install pinned validation environment
+        run: |
+          python -m pip install -r requirements/ci.txt
+          python -m pip install -e . --no-deps --no-build-isolation
+          python -m pip check
+      - name: Verify public file boundary
+        run: python tools/check_release.py
+      - name: Check code and tests
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+          python -m pytest -q
+      - name: Run synthetic demo and render gallery
+        run: |
+          python -m lockin_imaging demo --output outputs/ci-demo
+          python tools/build_gallery.py --output outputs/ci-gallery
+          python tools/verify_demo.py outputs/ci-demo
+      - name: Build and install wheel
+        run: |
+          python -m build --no-isolation
+          python -c "import glob, subprocess, sys; subprocess.run([sys.executable, '-m', 'pip', 'install', '--force-reinstall', '--no-deps', glob.glob('dist/*.whl')[0]], check=True)"
+      - name: Exercise installed wheel outside checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -I -c "import lockin_imaging; print(lockin_imaging.__version__); assert 'site-packages' in lockin_imaging.__file__"
+          python -I -m lockin_imaging demo --no-figures --output wheel-smoke

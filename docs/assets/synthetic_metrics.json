@@ -1,0 +1,20 @@
+{
+  "evidence": "synthetic software demonstration; not experimental validation",
+  "seed": 20261023,
+  "frames": 512,
+  "image_shape": [
+    64,
+    80
+  ],
+  "amplitude_rmse_all_pixels_au": 0.3883590866614425,
+  "control_amplitude_median_au": 0.32209404852713064,
+  "control_amplitude_p95_au": 0.6839170820723971,
+  "example_pixel_yx": [
+    17,
+    19
+  ],
+  "example_true_amplitude_au": 21.599999999999998,
+  "example_recovered_amplitude_au": 21.822378727046367,
+  "normalization": "100 * exposure-corrected sinusoidal peak amplitude / fitted mean baseline",
+  "detection_threshold_applied": false
+}

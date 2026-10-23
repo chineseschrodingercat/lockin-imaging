@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If referring to this public software companion, cite this repository and version."
+type: software
+title: "Lock-in imaging: an exposure-aware scientific software companion"
+authors:
+  - family-names: Liu
+    given-names: Minhao
+version: 0.1.0
+date-released: 2026-10-23
+url: "https://github.com/chineseschrodingercat/lockin-imaging"
+repository-code: "https://github.com/chineseschrodingercat/lockin-imaging"
+abstract: "A synthetic-only engineering companion with chunked I/Q demodulation, explicit quality contracts, and reproducible demonstrations."

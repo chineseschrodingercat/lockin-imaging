@@ -1,0 +1,8 @@
+{
+  "frequency_hz": 1.25,
+  "exposure_s": 0.018,
+  "drift_degree": 2,
+  "chunk_pixels": 1024,
+  "saturation_level": null,
+  "minimum_transfer": 0.1
+}
