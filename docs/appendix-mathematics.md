@@ -72,7 +72,7 @@ $$
 where $I=A\cos\phi$, $Q=A\sin\phi$ and
 
 $$
-h(f,\tau)=\operatorname{sinc}(f\tau)
+h(f,\tau)=\mathrm{sinc}(f\tau)
 =\frac{\sin(\pi f\tau)}{\pi f\tau},\qquad h(f,0)=1.
 $$
 
@@ -186,7 +186,7 @@ $$
 I\cos\theta+Q\sin\theta=A\cos(\theta-\phi)
 $$
 
-gives $A=\sqrt{I^2+Q^2}$ and $\phi=\operatorname{atan2}(Q,I)$.
+gives $A=\sqrt{I^2+Q^2}$ and $\phi=\mathrm{atan2}(Q,I)$.
 For a pure sinusoid, AC RMS amplitude is $A/\sqrt2$ and peak-to-peak amplitude
 is $2A$. The AC RMS excludes the DC baseline. At zero amplitude, phase is
 mathematically undefined; a returned floating-point angle is not evidence of
@@ -219,7 +219,7 @@ Assume the linear mean model is correct, the design is fixed, and temporal error
 have zero mean and covariance $\sigma^2I_N$. Then
 
 $$
-\operatorname{Cov}(\widehat\alpha)
+\mathrm{Cov}(\widehat\alpha)
 =\sigma^2X^+(X^+)^T,\qquad
 \widehat\sigma^2=\frac{\|y-X\widehat\alpha\|_2^2}{N-p}.
 $$
@@ -232,11 +232,11 @@ For general temporal covariance $\Omega$, the correct expression would be
 $X^+\Omega(X^+)^T$. Estimation of $\Omega$, generalized least squares, and
 correlated-noise uncertainty are **not implemented** here.
 
-Writing $C=\operatorname{Cov}(\widehat\gamma)$ and the true
+Writing $C=\mathrm{Cov}(\widehat\gamma)$ and the true
 $\gamma=(I,Q)^T$, the exact second-moment identity is
 
 $$
-\mathbb E[\widehat A^2]=A^2+\operatorname{tr}(C).
+\mathbb E[\widehat A^2]=A^2+\mathrm{tr}(C).
 $$
 
 In the special isotropic Gaussian case $C=s^2I_2$, the joint density of two
@@ -273,8 +273,8 @@ g_\phi=\frac{1}{A^2}(-Q,I)^T,
 $$
 
 $$
-\operatorname{Var}(\widehat A)\approx g_A^TCg_A,\qquad
-\operatorname{Var}(\widehat\phi)\approx g_\phi^TCg_\phi.
+\mathrm{Var}(\widehat A)\approx g_A^TCg_A,\qquad
+\mathrm{Var}(\widehat\phi)\approx g_\phi^TCg_\phi.
 $$
 
 These approximations fail near the origin. An uncertainty calculation for

@@ -21,7 +21,7 @@ $$
 where `P_j` is a Legendre polynomial, `d` is the supplied drift degree, `τ` is
 exposure duration, and
 
-$$h(f,\tau)=\frac{\sin(\pi f\tau)}{\pi f\tau}=\operatorname{sinc}(f\tau).$$
+$$h(f,\tau)=\frac{\sin(\pi f\tau)}{\pi f\tau}=\mathrm{sinc}(f\tau).$$
 
 The transfer follows by integrating a sinusoid over a rectangular exposure
 centered on `t_k`. Its value is one at zero exposure. Polynomial coefficients
@@ -35,7 +35,7 @@ are independent. No pooled fluorescence waveform supplies the phase.
 
 ## Output definitions
 
-$$A=\sqrt{I^2+Q^2},\qquad \phi=\operatorname{atan2}(Q,I),\qquad
+$$A=\sqrt{I^2+Q^2},\qquad \phi=\mathrm{atan2}(Q,I),\qquad
 B=\frac1N\sum_k\sum_{j=0}^d\beta_jP_j(u_k).$$
 
 $$M\ (\%)=100\,A/B\quad\text{for }B>0.$$
